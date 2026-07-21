@@ -1,0 +1,5 @@
+# Exclude local env and iOS Firebase plist from EAS upload.
+# google-services.json must be uploaded for Android Firebase builds.
+.env
+.env.local
+GoogleService-Info.plist
