@@ -1,11 +1,12 @@
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { AuthApi } from './api';
 
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
   if (!Device.isDevice) {
+    if (__DEV__) console.warn('[push] Skipped — not a physical device');
     return null;
   }
 
@@ -24,6 +25,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     finalStatus = status;
   }
   if (finalStatus !== 'granted') {
+    if (__DEV__) console.warn('[push] Permission not granted:', finalStatus);
     return null;
   }
 
@@ -31,16 +33,18 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     Constants.expoConfig?.extra?.eas?.projectId ??
     Constants.easConfig?.projectId;
   if (!projectId) {
-    console.warn('EAS projectId missing; cannot get push token.');
+    console.warn('[push] EAS projectId missing; cannot get push token.');
     return null;
   }
 
   const token = await Notifications.getExpoPushTokenAsync({ projectId });
+  if (__DEV__) console.log('[push] Token obtained:', token.data.slice(0, 30) + '…');
   return token.data;
 }
 
 export async function syncPushTokenWithBackend(token: string) {
   await AuthApi.updateMe({ expoPushToken: token });
+  if (__DEV__) console.log('[push] Token synced to backend');
 }
 
 export async function clearPushTokenOnBackend() {
@@ -51,10 +55,23 @@ export async function clearPushTokenOnBackend() {
   }
 }
 
-export async function registerAndSyncPushToken() {
-  const token = await registerForPushNotificationsAsync();
-  if (token) {
-    await syncPushTokenWithBackend(token);
+export async function registerAndSyncPushToken(): Promise<string | null> {
+  try {
+    const token = await registerForPushNotificationsAsync();
+    if (token) {
+      await syncPushTokenWithBackend(token);
+    }
+    return token;
+  } catch (err) {
+    console.warn('[push] registerAndSyncPushToken failed:', err);
+    return null;
   }
-  return token;
+}
+
+/** Re-sync token when app returns to foreground (token can change after updates). */
+export function subscribePushTokenRefresh(onRefresh: () => void) {
+  const sub = AppState.addEventListener('change', (state) => {
+    if (state === 'active') onRefresh();
+  });
+  return () => sub.remove();
 }

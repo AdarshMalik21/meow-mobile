@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 import { AuthApi, ApiError } from '../src/api';
 import { useAuth } from '../src/auth';
+import { registerAndSyncPushToken } from '../src/pushNotifications';
 import {
   BottomBar,
   ErrorText,
@@ -32,6 +33,7 @@ export default function SetupNameScreen() {
     try {
       const { user: updated } = await AuthApi.updateMe({ name: name.trim() });
       setUser(updated);
+      await registerAndSyncPushToken();
       router.replace('/choose-role');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not save name.');

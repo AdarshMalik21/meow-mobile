@@ -11,6 +11,7 @@ import { signOutFirebase } from './firebaseAuth';
 import {
   clearPushTokenOnBackend,
   registerAndSyncPushToken,
+  subscribePushTokenRefresh,
 } from './pushNotifications';
 import * as SecureStore from 'expo-secure-store';
 
@@ -46,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { user: me } = await AuthApi.me();
       setUser(me);
       if (me) {
-        registerAndSyncPushToken().catch(() => {});
+        registerAndSyncPushToken();
       }
       return me;
     } catch {
@@ -63,11 +64,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, [refreshUser]);
 
+  useEffect(() => {
+    if (!user) return;
+    return subscribePushTokenRefresh(() => {
+      registerAndSyncPushToken();
+    });
+  }, [user]);
+
   const signInWithFirebase = useCallback(async (idToken: string) => {
     const { token, user: u } = await AuthApi.firebase(idToken);
     await setToken(token);
     setUser(u);
-    registerAndSyncPushToken().catch(() => {});
+    await registerAndSyncPushToken();
     return u;
   }, []);
 
@@ -75,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { token, user: u } = await AuthApi.devLogin(phone);
     await setToken(token);
     setUser(u);
-    registerAndSyncPushToken().catch(() => {});
+    await registerAndSyncPushToken();
     return u;
   }, []);
 

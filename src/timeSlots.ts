@@ -28,14 +28,12 @@ export function getHourlySlots(): TimeSlot[] {
   }));
 }
 
-/** Slot available if its end time is still in the future (for today). */
+/** For today, exclude the in-progress hour (e.g. at 1:43 PM hide 1–2 PM, start at 2–3 PM). */
 function isSlotAvailable(dateISO: string, slot: TimeSlot): boolean {
   if (dateISO !== todayISO()) return true;
 
-  const [y, m, d] = dateISO.split('-').map(Number);
   const startHour = Number(slot.value.slice(0, 2));
-  const slotEnd = new Date(y, m - 1, d, startHour + 1, 0, 0, 0);
-  return slotEnd.getTime() > Date.now();
+  return startHour > new Date().getHours();
 }
 
 export function getAvailableSlots(dateISO: string): TimeSlot[] {

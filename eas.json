@@ -17,6 +17,7 @@
         "buildType": "apk"
       },
       "env": {
+        "EXPO_PUBLIC_API_URL": "https://meow-backend-7cj4.onrender.com",
         "EXPO_PUBLIC_ALLOW_DEV_AUTH": "true"
       }
     },
