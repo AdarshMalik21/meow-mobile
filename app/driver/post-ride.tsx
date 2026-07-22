@@ -83,7 +83,9 @@ export default function PostRideScreen() {
         pathname: '/success',
         params: {
           title: 'Ride Posted!',
-          message: 'Riders can now find and request a seat on your ride.',
+          message:
+            'Riders searching this route on the same date will see your ride.',
+          routeLine: `${fromCity} → ${toCity} · ${date} · ${time}`,
           next: '/driver/my-rides',
         },
       });

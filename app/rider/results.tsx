@@ -20,8 +20,39 @@ import {
 import { RequireAuth } from '../../src/RequireAuth';
 import { colors, fonts, spacing } from '../../src/theme';
 
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
 const cacheKey = (fromCity: string, toCity: string, date: string) =>
   `zippycar_rides_${fromCity}_${toCity}_${date}`;
+
+type CachedRides = {
+  savedAt: number;
+  rides: Ride[];
+};
+
+async function readCache(key: string): Promise<Ride[] | null> {
+  const raw = await AsyncStorage.getItem(key);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as CachedRides | Ride[];
+    if (Array.isArray(parsed)) {
+      return parsed;
+    }
+    if (Date.now() - parsed.savedAt > CACHE_TTL_MS) {
+      await AsyncStorage.removeItem(key);
+      return null;
+    }
+    return parsed.rides;
+  } catch {
+    await AsyncStorage.removeItem(key);
+    return null;
+  }
+}
+
+async function writeCache(key: string, rides: Ride[]) {
+  const payload: CachedRides = { savedAt: Date.now(), rides };
+  await AsyncStorage.setItem(key, JSON.stringify(payload));
+}
 
 export default function ResultsScreen() {
   const { fromCity, toCity, date } = useLocalSearchParams<{
@@ -38,28 +69,34 @@ export default function ResultsScreen() {
 
   const load = useCallback(async () => {
     if (!fromCity || !toCity || !date) return;
+    const key = cacheKey(fromCity, toCity, date);
     setLoading(true);
     setError(null);
     setFromCache(false);
     try {
       const { rides: data } = await RidesApi.search(fromCity, toCity, date);
       setRides(data);
-      await AsyncStorage.setItem(
-        cacheKey(fromCity, toCity, date),
-        JSON.stringify(data)
-      );
+      await writeCache(key, data);
     } catch (e) {
-      const cached = await AsyncStorage.getItem(cacheKey(fromCity, toCity, date));
-      if (cached) {
-        setRides(JSON.parse(cached));
-        setFromCache(true);
-        setError('Showing last saved list. Check your internet.');
+      const isClientError = e instanceof ApiError && e.status >= 400 && e.status < 500;
+      if (isClientError) {
+        setRides([]);
+        setError(e.message);
+        await AsyncStorage.removeItem(key);
       } else {
-        setError(
-          e instanceof ApiError
-            ? e.message
-            : "Couldn't load rides. Check your internet and try again."
-        );
+        const cached = await readCache(key);
+        if (cached) {
+          setRides(cached);
+          setFromCache(true);
+          setError('Showing last saved list. Check your internet.');
+        } else {
+          setRides([]);
+          setError(
+            e instanceof ApiError
+              ? e.message
+              : "Couldn't load rides. Check your internet and try again."
+          );
+        }
       }
     } finally {
       setLoading(false);
@@ -117,7 +154,16 @@ export default function ResultsScreen() {
             keyExtractor={(item) => item.id}
             contentContainerStyle={{ padding: spacing.lg }}
             ListEmptyComponent={
-              <Text style={styles.empty}>No rides for this route yet.</Text>
+              <View style={styles.emptyBox}>
+                <Text style={styles.emptyTitle}>No rides found</Text>
+                <Text style={styles.emptyLine}>From: {fromCity}</Text>
+                <Text style={styles.emptyLine}>To: {toCity}</Text>
+                <Text style={styles.emptyLine}>Date: {date}</Text>
+                <Text style={styles.emptyHint}>
+                  Ask the driver to confirm the same From, To, and Date. Delhi
+                  and New Delhi count as the same city.
+                </Text>
+              </View>
             }
             renderItem={({ item }) => (
               <View style={styles.card}>
@@ -156,7 +202,28 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontFamily: fonts.regular,
   },
-  empty: { color: colors.textMuted, fontSize: 16, fontFamily: fonts.regular },
+  emptyBox: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: spacing.md,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontFamily: fonts.bold,
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  emptyLine: {
+    color: colors.text,
+    fontFamily: fonts.regular,
+    marginTop: 4,
+  },
+  emptyHint: {
+    color: colors.textMuted,
+    fontFamily: fonts.regular,
+    marginTop: spacing.md,
+    lineHeight: 20,
+  },
   card: {
     backgroundColor: colors.surface,
     borderRadius: 12,

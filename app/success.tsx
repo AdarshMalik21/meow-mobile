@@ -6,9 +6,10 @@ import { colors, spacing } from '../src/theme';
 
 export default function SuccessScreen() {
   const router = useRouter();
-  const { title, message, next } = useLocalSearchParams<{
+  const { title, message, routeLine, next } = useLocalSearchParams<{
     title: string;
     message: string;
+    routeLine?: string;
     next: string;
   }>();
 
@@ -17,6 +18,7 @@ export default function SuccessScreen() {
       <View style={styles.body}>
         <Text style={styles.check}>✓</Text>
         <Text style={styles.title}>{title || 'Done!'}</Text>
+        {routeLine ? <Text style={styles.route}>{routeLine}</Text> : null}
         <Text style={styles.sub}>{message || ''}</Text>
       </View>
       <View style={styles.actions}>
@@ -60,6 +62,13 @@ const styles = StyleSheet.create({
     fontSize: 30,
     fontWeight: '800',
     color: colors.text,
+    textAlign: 'center',
+  },
+  route: {
+    marginTop: spacing.sm,
+    fontSize: 17,
+    fontWeight: '600',
+    color: colors.primary,
     textAlign: 'center',
   },
   sub: {

@@ -58,7 +58,10 @@ export default function SearchScreen() {
       <View style={{ flex: 1, backgroundColor: colors.background }}>
         <Screen>
           <Title>Find a ride</Title>
-          <Subtitle>Search cities from the directory and pick a date.</Subtitle>
+          <Subtitle>
+            Search cities from the directory and pick a date. Use the same From,
+            To, and Date the driver posted.
+          </Subtitle>
           <CityAutocomplete
             label="From city"
             placeholder="e.g. Moradabad"
