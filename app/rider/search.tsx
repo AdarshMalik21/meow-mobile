@@ -1,18 +1,16 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
+import { CityAutocomplete } from '../../src/components/CityAutocomplete';
 import { DatePickerField } from '../../src/components/DatePickerField';
 import {
   BottomBar,
   ErrorText,
-  Field,
-  Label,
   PrimaryButton,
   Screen,
   Subtitle,
   Title,
 } from '../../src/components/ui';
-import { trimCity } from '../../src/constants';
 import { todayISO } from '../../src/dates';
 import { RequireAuth } from '../../src/RequireAuth';
 import { colors } from '../../src/theme';
@@ -29,21 +27,24 @@ export default function SearchScreen() {
     return d;
   }, []);
 
+  const canSearch =
+    fromCity.length > 0 &&
+    toCity.length > 0 &&
+    fromCity.toLowerCase() !== toCity.toLowerCase();
+
   const onSearch = () => {
-    const from = trimCity(fromCity);
-    const to = trimCity(toCity);
-    if (from.length < 2 || to.length < 2) {
-      setError('Enter from and to cities.');
+    if (!fromCity || !toCity) {
+      setError('Pick from and to cities from the list.');
       return;
     }
-    if (from.toLowerCase() === to.toLowerCase()) {
+    if (fromCity.toLowerCase() === toCity.toLowerCase()) {
       setError('From and To must be different cities.');
       return;
     }
     setError(null);
     router.push({
       pathname: '/rider/results',
-      params: { fromCity: from, toCity: to, date },
+      params: { fromCity, toCity, date },
     });
   };
 
@@ -52,20 +53,20 @@ export default function SearchScreen() {
       <View style={{ flex: 1, backgroundColor: colors.background }}>
         <Screen>
           <Title>Find a ride</Title>
-          <Subtitle>Enter cities and travel date.</Subtitle>
-          <Label>From city</Label>
-          <Field
-            value={fromCity}
-            onChangeText={setFromCity}
+          <Subtitle>Search cities from the directory and pick a date.</Subtitle>
+          <CityAutocomplete
+            label="From city"
             placeholder="e.g. Moradabad"
-            autoCapitalize="words"
+            value={fromCity}
+            onChange={setFromCity}
+            excludeCity={toCity}
           />
-          <Label>To city</Label>
-          <Field
-            value={toCity}
-            onChangeText={setToCity}
+          <CityAutocomplete
+            label="To city"
             placeholder="e.g. Delhi"
-            autoCapitalize="words"
+            value={toCity}
+            onChange={setToCity}
+            excludeCity={fromCity}
           />
           <DatePickerField
             label="Travel date"
@@ -76,7 +77,11 @@ export default function SearchScreen() {
           <ErrorText>{error}</ErrorText>
         </Screen>
         <BottomBar>
-          <PrimaryButton label="Search / खोजें" onPress={onSearch} />
+          <PrimaryButton
+            label="Search / खोजें"
+            onPress={onSearch}
+            disabled={!canSearch}
+          />
         </BottomBar>
       </View>
     </RequireAuth>

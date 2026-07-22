@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { ApiError, RidesApi } from '../../src/api';
+import { CityAutocomplete } from '../../src/components/CityAutocomplete';
 import { DatePickerField } from '../../src/components/DatePickerField';
 import { TimeSlotPicker } from '../../src/components/TimeSlotPicker';
 import {
@@ -15,7 +16,6 @@ import {
   Subtitle,
   Title,
 } from '../../src/components/ui';
-import { trimCity } from '../../src/constants';
 import { todayISO } from '../../src/dates';
 import { RequireAuth } from '../../src/RequireAuth';
 import { colors } from '../../src/theme';
@@ -41,7 +41,11 @@ export default function PostRideScreen() {
   }, []);
 
   const availableSlots = useMemo(() => getAvailableSlots(date), [date]);
-  const canPost = availableSlots.length > 0;
+  const canPost =
+    availableSlots.length > 0 &&
+    fromCity.length > 0 &&
+    toCity.length > 0 &&
+    fromCity.toLowerCase() !== toCity.toLowerCase();
 
   useEffect(() => {
     const slots = getAvailableSlots(date);
@@ -53,13 +57,11 @@ export default function PostRideScreen() {
 
   const onPost = async () => {
     setError(null);
-    const from = trimCity(fromCity);
-    const to = trimCity(toCity);
-    if (from.length < 2 || to.length < 2) {
-      setError('Enter from and to cities.');
+    if (!fromCity || !toCity) {
+      setError('Pick from and to cities from the list.');
       return;
     }
-    if (from.toLowerCase() === to.toLowerCase()) {
+    if (fromCity.toLowerCase() === toCity.toLowerCase()) {
       setError('From and To must be different cities.');
       return;
     }
@@ -70,8 +72,8 @@ export default function PostRideScreen() {
     setLoading(true);
     try {
       await RidesApi.create({
-        fromCity: from,
-        toCity: to,
+        fromCity,
+        toCity,
         date,
         time,
         pickupPoint: pickupPoint.trim() || undefined,
@@ -100,20 +102,20 @@ export default function PostRideScreen() {
             <Title>Post a ride</Title>
             <Subtitle>Share your city-to-city trip and available seats.</Subtitle>
 
-            <Label>From city</Label>
-            <Field
-              value={fromCity}
-              onChangeText={setFromCity}
+            <CityAutocomplete
+              label="From city"
               placeholder="e.g. Moradabad"
-              autoCapitalize="words"
+              value={fromCity}
+              onChange={setFromCity}
+              excludeCity={toCity}
             />
 
-            <Label>To city</Label>
-            <Field
-              value={toCity}
-              onChangeText={setToCity}
+            <CityAutocomplete
+              label="To city"
               placeholder="e.g. Delhi"
-              autoCapitalize="words"
+              value={toCity}
+              onChange={setToCity}
+              excludeCity={fromCity}
             />
 
             <DatePickerField

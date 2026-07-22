@@ -154,6 +154,14 @@ export const UsersApi = {
     ),
 };
 
+export const CitiesApi = {
+  search: (q: string, signal?: AbortSignal) =>
+    api<{ cities: string[] }>(
+      `/cities?q=${encodeURIComponent(q)}&limit=15`,
+      { auth: true, signal }
+    ),
+};
+
 export const RidesApi = {
   search: (fromCity: string, toCity: string, date: string) =>
     api<{ rides: Ride[] }>(
