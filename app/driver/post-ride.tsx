@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { ApiError, RidesApi } from '../../src/api';
 import { CityAutocomplete } from '../../src/components/CityAutocomplete';
 import { DatePickerField } from '../../src/components/DatePickerField';
@@ -18,7 +18,7 @@ import {
 } from '../../src/components/ui';
 import { todayISO } from '../../src/dates';
 import { RequireAuth } from '../../src/RequireAuth';
-import { colors } from '../../src/theme';
+import { colors, fonts, spacing } from '../../src/theme';
 import {
   firstAvailableSlot,
   getAvailableSlots,
@@ -94,10 +94,19 @@ export default function PostRideScreen() {
     }
   };
 
+  const cityHint =
+    !fromCity || !toCity
+      ? 'Select From and To cities from the list to enable Post Ride.'
+      : null;
+
   return (
     <RequireAuth>
       <View style={{ flex: 1, backgroundColor: colors.background }}>
-        <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={{ paddingBottom: 24 }}
+        >
           <Screen>
             <Title>Post a ride</Title>
             <Subtitle>Share your city-to-city trip and available seats.</Subtitle>
@@ -146,6 +155,11 @@ export default function PostRideScreen() {
               ))}
             </View>
             <ErrorText>{error}</ErrorText>
+            {!error && cityHint ? (
+              <Text style={{ fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted, marginTop: spacing.sm }}>
+                {cityHint}
+              </Text>
+            ) : null}
           </Screen>
         </ScrollView>
         <BottomBar>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -23,27 +24,22 @@ type Props = {
 
 export function CityAutocomplete({
   label,
-  placeholder = 'Start typing a city…',
+  placeholder = 'Tap to search cities…',
   value,
   onChange,
   excludeCity,
 }: Props) {
-  const [query, setQuery] = useState(value);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const [results, setResults] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [focused, setFocused] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const debouncedQuery = useDebouncedValue(query, 300);
-  const showList = focused && (loading || results.length > 0 || fetchError || debouncedQuery.length > 0);
 
   useEffect(() => {
-    setQuery(value);
-  }, [value]);
-
-  useEffect(() => {
-    if (!focused) return;
+    if (!open) return;
 
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -69,39 +65,59 @@ export function CityAutocomplete({
     })();
 
     return () => controller.abort();
-  }, [debouncedQuery, focused, excludeCity]);
+  }, [debouncedQuery, open, excludeCity]);
+
+  const openPicker = () => {
+    setQuery(value);
+    setOpen(true);
+  };
 
   const onSelect = (city: string) => {
     onChange(city);
     setQuery(city);
-    setFocused(false);
-    setResults([]);
+    setOpen(false);
   };
 
-  const onChangeText = (text: string) => {
-    setQuery(text);
-    if (value && text.trim().toLowerCase() !== value.toLowerCase()) {
-      onChange('');
-    }
+  const closePicker = () => {
+    setOpen(false);
   };
+
+  const display = value || placeholder;
+  const needsSelection = !value;
 
   return (
     <View style={styles.wrap}>
       <Label>{label}</Label>
-      <Field
-        value={query}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        autoCapitalize="words"
-        autoCorrect={false}
-        onFocus={() => setFocused(true)}
-        onBlur={() => {
-          // Delay so tap on suggestion registers
-          setTimeout(() => setFocused(false), 200);
-        }}
-      />
-      {showList ? (
-        <View style={styles.listBox}>
+      <Pressable
+        onPress={openPicker}
+        style={({ pressed }) => [styles.field, pressed && { opacity: 0.85 }]}
+      >
+        <Text style={[styles.value, !value && styles.placeholder]} numberOfLines={1}>
+          {display}
+        </Text>
+        <Text style={styles.chevron}>▼</Text>
+      </Pressable>
+
+      {needsSelection ? (
+        <Text style={styles.hint}>Tap above and pick a city from the list</Text>
+      ) : (
+        <Text style={styles.selectedHint}>Selected: {value}</Text>
+      )}
+
+      <Modal visible={open} transparent animationType="slide" onRequestClose={closePicker}>
+        <Pressable style={styles.backdrop} onPress={closePicker} />
+        <View style={styles.sheet}>
+          <Text style={styles.sheetTitle}>{label}</Text>
+          <View style={styles.searchWrap}>
+            <Field
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Type to search…"
+              autoCapitalize="words"
+              autoCorrect={false}
+              autoFocus
+            />
+          </View>
           {loading ? (
             <View style={styles.loadingRow}>
               <ActivityIndicator size="small" color={colors.primary} />
@@ -115,21 +131,29 @@ export function CityAutocomplete({
               data={results}
               keyExtractor={(item) => item}
               keyboardShouldPersistTaps="handled"
-              nestedScrollEnabled
-              style={styles.list}
               renderItem={({ item }) => (
                 <Pressable
                   onPress={() => onSelect(item)}
-                  style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+                  style={({ pressed }) => [
+                    styles.row,
+                    item === value && styles.rowSelected,
+                    pressed && styles.rowPressed,
+                  ]}
                 >
-                  <Text style={styles.rowText}>{item}</Text>
+                  <Text
+                    style={[
+                      styles.rowText,
+                      item === value && styles.rowTextSelected,
+                    ]}
+                  >
+                    {item}
+                  </Text>
                 </Pressable>
               )}
             />
           )}
         </View>
-      ) : null}
-      {value ? <Text style={styles.selectedHint}>Selected: {value}</Text> : null}
+      </Modal>
     </View>
   );
 }
@@ -137,25 +161,74 @@ export function CityAutocomplete({
 const styles = StyleSheet.create({
   wrap: {
     marginBottom: spacing.md,
-    zIndex: 1,
   },
-  listBox: {
-    marginTop: spacing.xs,
+  field: {
+    minHeight: 52,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
+    paddingHorizontal: spacing.md,
     backgroundColor: colors.white,
-    maxHeight: 200,
-    overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  list: {
-    maxHeight: 200,
+  value: {
+    fontSize: 16,
+    fontFamily: fonts.regular,
+    color: colors.text,
+    flex: 1,
+  },
+  placeholder: {
+    color: colors.textMuted,
+  },
+  chevron: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginLeft: spacing.sm,
+  },
+  hint: {
+    marginTop: spacing.xs,
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  selectedHint: {
+    marginTop: spacing.xs,
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: colors.primary,
+  },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  sheet: {
+    maxHeight: '70%',
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: spacing.lg,
+  },
+  sheetTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 18,
+    color: colors.text,
+    padding: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  searchWrap: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
   },
   row: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+  },
+  rowSelected: {
+    backgroundColor: colors.surface,
   },
   rowPressed: {
     backgroundColor: colors.surface,
@@ -165,20 +238,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
   },
+  rowTextSelected: {
+    fontFamily: fonts.bold,
+    color: colors.primary,
+  },
   loadingRow: {
-    padding: spacing.md,
+    padding: spacing.lg,
     alignItems: 'center',
   },
   emptyText: {
-    padding: spacing.md,
+    padding: spacing.lg,
     fontFamily: fonts.regular,
     fontSize: 14,
-    color: colors.textMuted,
-  },
-  selectedHint: {
-    marginTop: spacing.xs,
-    fontFamily: fonts.regular,
-    fontSize: 12,
     color: colors.textMuted,
   },
 });

@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 import { CityAutocomplete } from '../../src/components/CityAutocomplete';
 import { DatePickerField } from '../../src/components/DatePickerField';
 import {
@@ -13,7 +13,7 @@ import {
 } from '../../src/components/ui';
 import { todayISO } from '../../src/dates';
 import { RequireAuth } from '../../src/RequireAuth';
-import { colors } from '../../src/theme';
+import { colors, fonts, spacing } from '../../src/theme';
 
 export default function SearchScreen() {
   const router = useRouter();
@@ -48,6 +48,11 @@ export default function SearchScreen() {
     });
   };
 
+  const cityHint =
+    !fromCity || !toCity
+      ? 'Select From and To cities from the list to enable Search.'
+      : null;
+
   return (
     <RequireAuth>
       <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -75,6 +80,11 @@ export default function SearchScreen() {
             minimumDate={minDate}
           />
           <ErrorText>{error}</ErrorText>
+          {!error && cityHint ? (
+            <Text style={{ fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted, marginTop: spacing.sm }}>
+              {cityHint}
+            </Text>
+          ) : null}
         </Screen>
         <BottomBar>
           <PrimaryButton
