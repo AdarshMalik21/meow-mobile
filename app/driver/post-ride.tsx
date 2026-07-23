@@ -1,9 +1,10 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import { ApiError, RidesApi } from '../../src/api';
+import { ApiError, RoutesApi, RidesApi } from '../../src/api';
 import { CityAutocomplete } from '../../src/components/CityAutocomplete';
 import { DatePickerField } from '../../src/components/DatePickerField';
+import { PickupStopPicker } from '../../src/components/PickupStopPicker';
 import { TimeSlotPicker } from '../../src/components/TimeSlotPicker';
 import {
   BottomBar,
@@ -31,6 +32,9 @@ export default function PostRideScreen() {
   const [date, setDate] = useState(todayISO());
   const [time, setTime] = useState(() => firstAvailableSlot(todayISO()) ?? '07:00');
   const [pickupPoint, setPickupPoint] = useState('');
+  const [pickupStops, setPickupStops] = useState<string[]>([]);
+  const [intermediateCities, setIntermediateCities] = useState<string[]>([]);
+  const [pathLoading, setPathLoading] = useState(false);
   const [seats, setSeats] = useState(3);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +59,32 @@ export default function PostRideScreen() {
     }
   }, [date, time]);
 
+  useEffect(() => {
+    if (!fromCity || !toCity || fromCity.toLowerCase() === toCity.toLowerCase()) {
+      setIntermediateCities([]);
+      setPickupStops([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    setPathLoading(true);
+    RoutesApi.getPath(fromCity, toCity, controller.signal)
+      .then((path) => {
+        setIntermediateCities(path.intermediateCities);
+        setPickupStops((prev) =>
+          prev.filter((c) => path.intermediateCities.includes(c))
+        );
+      })
+      .catch((e) => {
+        if (e?.name === 'AbortError') return;
+        setIntermediateCities([]);
+        setPickupStops([]);
+      })
+      .finally(() => setPathLoading(false));
+
+    return () => controller.abort();
+  }, [fromCity, toCity]);
+
   const onPost = async () => {
     setError(null);
     if (!fromCity || !toCity) {
@@ -77,15 +107,18 @@ export default function PostRideScreen() {
         date,
         time,
         pickupPoint: pickupPoint.trim() || undefined,
+        pickupStops,
         totalSeats: seats,
       });
+      const stopsLabel =
+        pickupStops.length > 0 ? ` · Pickups: ${pickupStops.join(', ')}` : '';
       router.replace({
         pathname: '/success',
         params: {
           title: 'Ride Posted!',
           message:
-            'Riders searching this route on the same date will see your ride.',
-          routeLine: `${fromCity} → ${toCity} · ${date} · ${time}`,
+            'Riders searching from your pickup cities to your destination will see this ride.',
+          routeLine: `${fromCity} → ${toCity} · ${date} · ${time}${stopsLabel}`,
           next: '/driver/my-rides',
         },
       });
@@ -129,6 +162,27 @@ export default function PostRideScreen() {
               excludeCity={fromCity}
             />
 
+            {pathLoading ? (
+              <Text
+                style={{
+                  fontFamily: fonts.regular,
+                  fontSize: 13,
+                  color: colors.textMuted,
+                  marginTop: spacing.sm,
+                }}
+              >
+                Loading route cities…
+              </Text>
+            ) : (
+              <PickupStopPicker
+                driverFrom={fromCity}
+                driverTo={toCity}
+                intermediateCities={intermediateCities}
+                selected={pickupStops}
+                onChange={setPickupStops}
+              />
+            )}
+
             <DatePickerField
               label="Travel date"
               value={date}
@@ -158,7 +212,14 @@ export default function PostRideScreen() {
             </View>
             <ErrorText>{error}</ErrorText>
             {!error && cityHint ? (
-              <Text style={{ fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted, marginTop: spacing.sm }}>
+              <Text
+                style={{
+                  fontFamily: fonts.regular,
+                  fontSize: 13,
+                  color: colors.textMuted,
+                  marginTop: spacing.sm,
+                }}
+              >
                 {cityHint}
               </Text>
             ) : null}

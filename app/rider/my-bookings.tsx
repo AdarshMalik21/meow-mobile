@@ -94,8 +94,15 @@ export default function MyBookingsScreen() {
                   {item.ride.driver.name || 'Driver'}
                 </Text>
                 <Text style={styles.meta}>
-                  {routeLabel(item.ride.fromCity, item.ride.toCity)}
+                  {item.riderFromCity && item.riderToCity
+                    ? `Your trip: ${item.riderFromCity} → ${item.riderToCity}`
+                    : routeLabel(item.ride.fromCity, item.ride.toCity)}
                 </Text>
+                {item.riderFromCity && item.riderToCity ? (
+                  <Text style={styles.meta}>
+                    Driver route: {routeLabel(item.ride.fromCity, item.ride.toCity)}
+                  </Text>
+                ) : null}
                 <Text style={styles.meta}>
                   {item.ride.date} · {item.ride.time}
                 </Text>

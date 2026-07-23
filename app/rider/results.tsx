@@ -111,7 +111,10 @@ export default function ResultsScreen() {
     setBookingId(ride.id);
     setError(null);
     try {
-      await RidesApi.book(ride.id);
+      await RidesApi.book(ride.id, {
+        riderFromCity: fromCity || '',
+        riderToCity: toCity || '',
+      });
       router.replace({
         pathname: '/rider/requested',
         params: {
@@ -160,14 +163,20 @@ export default function ResultsScreen() {
                 <Text style={styles.emptyLine}>To: {toCity}</Text>
                 <Text style={styles.emptyLine}>Date: {date}</Text>
                 <Text style={styles.emptyHint}>
-                  Ask the driver to confirm the same From, To, and Date. Delhi
-                  and New Delhi count as the same city.
+                  Ask the driver to select your city as a pickup stop and use the
+                  same destination and date. Delhi and New Delhi count as the same
+                  city.
                 </Text>
               </View>
             }
             renderItem={({ item }) => (
               <View style={styles.card}>
                 <Text style={styles.name}>{item.driver.name || 'Driver'}</Text>
+                {item.matchType === 'viaStop' ? (
+                  <Text style={styles.viaBadge}>
+                    Via your city · Driver route: {item.fromCity} → {item.toCity}
+                  </Text>
+                ) : null}
                 <Text style={styles.metaLine}>
                   {item.driver.carModel} · {item.time}
                 </Text>
@@ -239,6 +248,12 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: 4,
     fontFamily: fonts.regular,
+  },
+  viaBadge: {
+    marginTop: 4,
+    fontSize: 13,
+    fontFamily: fonts.medium,
+    color: colors.primary,
   },
   seats: {
     marginTop: 8,

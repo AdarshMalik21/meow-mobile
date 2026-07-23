@@ -14,6 +14,8 @@ export type RideRequest = {
   id: string;
   status: 'PENDING' | 'BOOKED' | 'REJECTED' | 'CANCELLED';
   createdAt: string;
+  riderFromCity?: string;
+  riderToCity?: string;
   rider: {
     id: string;
     name: string | null;
@@ -28,6 +30,8 @@ export type Ride = {
   date: string;
   time: string;
   pickupPoint: string;
+  pickupStops?: string[];
+  matchType?: 'exact' | 'viaStop';
   totalSeats: number;
   seatsAvailable: number;
   status: 'ACTIVE' | 'FULL' | 'CANCELLED' | 'COMPLETED';
@@ -47,6 +51,8 @@ export type Booking = {
   id: string;
   status: 'PENDING' | 'BOOKED' | 'REJECTED' | 'CANCELLED';
   createdAt: string;
+  riderFromCity?: string;
+  riderToCity?: string;
   ride: {
     id: string;
     fromCity: string;
@@ -162,6 +168,20 @@ export const CitiesApi = {
     ),
 };
 
+export const RoutesApi = {
+  getPath: (fromCity: string, toCity: string, signal?: AbortSignal) =>
+    api<{
+      corridorFound: boolean;
+      corridorId: string | null;
+      intermediateCities: string[];
+      driverFrom: string;
+      driverTo: string;
+    }>(
+      `/routes/path?fromCity=${encodeURIComponent(fromCity)}&toCity=${encodeURIComponent(toCity)}`,
+      { auth: true, signal }
+    ),
+};
+
 export const RidesApi = {
   search: (fromCity: string, toCity: string, date: string) =>
     api<{ rides: Ride[] }>(
@@ -174,6 +194,7 @@ export const RidesApi = {
     date: string;
     time: string;
     pickupPoint?: string;
+    pickupStops?: string[];
     totalSeats: number;
   }) =>
     api<{ ride: Ride }>('/rides', {
@@ -185,11 +206,23 @@ export const RidesApi = {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     }),
-  book: (id: string) =>
+  book: (
+    id: string,
+    body?: { riderFromCity: string; riderToCity: string }
+  ) =>
     api<{
-      booking: { id: string; status: string; ride: Ride };
+      booking: {
+        id: string;
+        status: string;
+        riderFromCity?: string;
+        riderToCity?: string;
+        ride: Ride;
+      };
       message?: string;
-    }>(`/rides/${id}/book`, { method: 'POST' }),
+    }>(`/rides/${id}/book`, {
+      method: 'POST',
+      body: JSON.stringify(body ?? {}),
+    }),
 };
 
 export const BookingsApi = {

@@ -128,6 +128,11 @@ export default function MyRidesScreen() {
                 {item.pickupPoint ? (
                   <Text style={styles.meta}>Meeting: {item.pickupPoint}</Text>
                 ) : null}
+                {item.pickupStops && item.pickupStops.length > 1 ? (
+                  <Text style={styles.meta}>
+                    Pickup cities: {item.pickupStops.join(', ')}
+                  </Text>
+                ) : null}
                 <Text style={styles.meta}>
                   Seats left: {item.seatsAvailable}/{item.totalSeats}
                 </Text>
@@ -142,6 +147,9 @@ export default function MyRidesScreen() {
                       <View key={req.id} style={styles.requestRow}>
                         <Text style={styles.requestName}>
                           {req.rider.name || 'Rider'} · {req.rider.phone}
+                          {req.riderFromCity && req.riderToCity
+                            ? `\n${req.riderFromCity} → ${req.riderToCity}`
+                            : ''}
                         </Text>
                         <View style={styles.row}>
                           <Pressable

@@ -59,8 +59,8 @@ export default function SearchScreen() {
         <Screen>
           <Title>Find a ride</Title>
           <Subtitle>
-            Search cities from the directory and pick a date. Use the same From,
-            To, and Date the driver posted.
+            Search cities from the directory and pick a date. You can join rides
+            passing through your city if the driver selected it as a pickup stop.
           </Subtitle>
           <CityAutocomplete
             label="From city"
