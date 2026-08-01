@@ -198,13 +198,7 @@ export default function HomeScreen() {
               <>
                 <PrimaryButton
                   label="Post Ride / राइड पोस्ट करें"
-                  onPress={() => {
-                    if (!user?.hasDriverProfile) {
-                      router.push('/driver/setup-car');
-                    } else {
-                      router.push('/driver/post-ride');
-                    }
-                  }}
+                  onPress={() => router.push('/driver/post-ride')}
                 />
                 <View style={{ height: 12 }} />
                 <PrimaryButton

@@ -3,3 +3,7 @@
 .env
 .env.local
 GoogleService-Info.plist
+
+# Exclude generated native projects so EAS prebuilds from app.json (icons, splash, etc.).
+android/
+ios/

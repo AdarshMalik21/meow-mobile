@@ -13,7 +13,7 @@ import { useAuth } from '../src/auth';
 import { useRole } from '../src/role';
 import { ApiError } from '../src/api';
 import { mapFirebaseAuthError, sendOtp } from '../src/firebaseAuth';
-import { ZuroIcon } from '../src/components/ZuroIcon';
+import { ZuroLogo } from '../src/components/ZuroLogo';
 import {
   BottomBar,
   ErrorText,
@@ -90,7 +90,7 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Screen style={styles.screen} safeTop>
-        <ZuroIcon size="small" style={styles.logo} />
+        <ZuroLogo size="small" style={styles.logo} />
         <Title>Log in or sign up</Title>
         <Subtitle>
           Enter your mobile number. We will send a 6-digit OTP to verify you.

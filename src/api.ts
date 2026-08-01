@@ -40,6 +40,7 @@ export type Ride = {
   status: 'ACTIVE' | 'FULL' | 'CANCELLED' | 'COMPLETED';
   bookingsCount?: number;
   pendingCount?: number;
+  seatsBooked?: number;
   requests?: RideRequest[];
   driver: {
     id?: string;
@@ -210,7 +211,11 @@ export const RidesApi = {
     api<{ rides: Ride[] }>(
       `/rides?fromCity=${encodeURIComponent(fromCity)}&toCity=${encodeURIComponent(toCity)}&date=${encodeURIComponent(date)}`
     ),
-  mine: () => api<{ rides: Ride[] }>('/rides/mine'),
+  mine: (includePast = false) =>
+    api<{ rides: Ride[] }>(
+      `/rides/mine${includePast ? '?includePast=true' : ''}`
+    ),
+  getById: (id: string) => api<{ ride: Ride }>(`/rides/${id}`),
   create: (body: {
     fromCity: string;
     toCity: string;
@@ -220,6 +225,8 @@ export const RidesApi = {
     pickupStops?: string[];
     totalSeats: number;
     pricePerSeat: number;
+    carModel: string;
+    carNumber: string;
   }) =>
     api<{ ride: Ride }>('/rides', {
       method: 'POST',

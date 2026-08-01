@@ -1,6 +1,6 @@
 /**
- * Export a square 1024×1024 app icon from the full Zuro logo.
- * Trims whitespace, scales to ~88% of the canvas, centers on light gray.
+ * Export app icon assets from the full Zuro logo source.
+ * Crops out the "Zuro" wordmark; outputs icon-only PNGs.
  *
  * Usage: node scripts/export-app-icon.mjs
  */
@@ -12,22 +12,33 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const assets = path.join(__dirname, '..', 'assets');
 
 const SOURCE = path.join(assets, 'zuro-logo-source.png');
-const OUTPUT = path.join(assets, 'zuro-icon.png');
+const OUTPUT_ICON = path.join(assets, 'zuro-icon.png');
+const OUTPUT_MARK = path.join(assets, 'zuro-logo-mark.png');
 const SIZE = 1024;
-const FILL = 0.88; // logo fills ~88% of canvas (fixes "too zoomed out")
+const FILL = 0.88;
 const BG = '#EEF1F4';
+/** Top portion of trimmed logo — excludes wordmark below the Z mark */
+const ICON_CROP_RATIO = 0.68;
 
 const trimmed = await sharp(SOURCE).trim({ threshold: 15 }).toBuffer({
   resolveWithObject: true,
 });
 
 const { width: tw, height: th } = trimmed.info;
-const maxDim = Math.round(SIZE * FILL);
-const scale = Math.min(maxDim / tw, maxDim / th);
-const rw = Math.round(tw * scale);
-const rh = Math.round(th * scale);
+const cropHeight = Math.max(1, Math.round(th * ICON_CROP_RATIO));
 
-const resized = await sharp(trimmed.data)
+const markOnly = await sharp(trimmed.data)
+  .extract({ left: 0, top: 0, width: tw, height: cropHeight })
+  .png()
+  .toBuffer({ resolveWithObject: true });
+
+const { width: mw, height: mh } = markOnly.info;
+const maxDim = Math.round(SIZE * FILL);
+const scale = Math.min(maxDim / mw, maxDim / mh);
+const rw = Math.round(mw * scale);
+const rh = Math.round(mh * scale);
+
+const resizedMark = await sharp(markOnly.data)
   .resize(rw, rh, { fit: 'fill' })
   .png()
   .toBuffer();
@@ -43,11 +54,14 @@ await sharp({
     background: BG,
   },
 })
-  .composite([{ input: resized, left, top }])
+  .composite([{ input: resizedMark, left, top }])
   .png()
-  .toFile(OUTPUT);
+  .toFile(OUTPUT_ICON);
 
-const meta = await sharp(OUTPUT).metadata();
+await sharp(resizedMark).png().toFile(OUTPUT_MARK);
+
+const meta = await sharp(OUTPUT_ICON).metadata();
 console.log(
-  `Wrote ${OUTPUT} (${meta.width}×${meta.height}), logo ${rw}×${rh} at (${left},${top})`
+  `Wrote ${OUTPUT_ICON} (${meta.width}×${meta.height}), mark ${rw}×${rh} at (${left},${top})`
 );
+console.log(`Wrote ${OUTPUT_MARK} (${rw}×${rh}, transparent)`);

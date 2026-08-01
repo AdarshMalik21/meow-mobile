@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -8,37 +8,33 @@ import {
   Text,
   View,
 } from 'react-native';
-import { ApiError, BookingsApi, Ride, RidesApi } from '../../src/api';
+import { ApiError, Ride, RidesApi } from '../../src/api';
 import { routeLabel, formatPricePerSeat, formatSeatsLabel } from '../../src/constants';
 import { ErrorText, PrimaryButton, Screen, Title } from '../../src/components/ui';
 import { RequireAuth } from '../../src/RequireAuth';
 import { colors, fonts, spacing } from '../../src/theme';
 
-function riderSegmentDiffers(
-  driverFrom: string,
-  driverTo: string,
-  riderFrom?: string,
-  riderTo?: string
-): boolean {
-  if (!riderFrom || !riderTo) return false;
-  return (
-    riderFrom.toLowerCase() !== driverFrom.toLowerCase() ||
-    riderTo.toLowerCase() !== driverTo.toLowerCase()
-  );
+function rideListCutoffISO(daysBack = 2): string {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - daysBack);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 export default function MyRidesScreen() {
   const router = useRouter();
   const [rides, setRides] = useState<Ride[]>([]);
+  const [includePast, setIncludePast] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const cutoff = useMemo(() => rideListCutoffISO(2), []);
 
   const load = useCallback(async () => {
     setError(null);
     setLoading(true);
     try {
-      const { rides: data } = await RidesApi.mine();
+      const { rides: data } = await RidesApi.mine(includePast);
       setRides(data);
     } catch (e) {
       setError(
@@ -49,7 +45,7 @@ export default function MyRidesScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [includePast]);
 
   useFocusEffect(
     useCallback(() => {
@@ -65,41 +61,6 @@ export default function MyRidesScreen() {
       await load();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not update ride.');
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  const onApprove = async (requestId: string) => {
-    setBusyId(requestId);
-    setError(null);
-    try {
-      await BookingsApi.approve(requestId);
-      router.push({
-        pathname: '/success',
-        params: {
-          title: 'Request Allowed!',
-          message: 'Seat is confirmed for the rider. They can now see your phone.',
-          next: '/driver/my-rides',
-        },
-      });
-      await load();
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not allow request.');
-      await load();
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  const onReject = async (requestId: string) => {
-    setBusyId(requestId);
-    setError(null);
-    try {
-      await BookingsApi.reject(requestId);
-      await load();
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not decline request.');
     } finally {
       setBusyId(null);
     }
@@ -125,128 +86,54 @@ export default function MyRidesScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.sm }}
           ListEmptyComponent={
-            <Text style={styles.empty}>No rides yet. Post your first ride.</Text>
+            <Text style={styles.empty}>
+              {includePast
+                ? 'No rides found.'
+                : 'No recent rides. Post a ride or show past rides.'}
+            </Text>
           }
           renderItem={({ item }) => {
-            const pending = (item.requests || []).filter((r) => r.status === 'PENDING');
-            const booked = (item.requests || []).filter((r) => r.status === 'BOOKED');
+            const isPast = item.date < cutoff;
+            const pendingCount = item.pendingCount ?? 0;
+            const bookedCount = item.bookingsCount ?? 0;
             return (
-              <View style={styles.card}>
-                <Text style={styles.dir}>
-                  {routeLabel(item.fromCity, item.toCity)}
-                </Text>
-                <Text style={styles.meta}>
-                  {item.date} · {item.time}
-                </Text>
-                {item.pickupPoint ? (
-                  <Text style={styles.meta}>Meeting: {item.pickupPoint}</Text>
-                ) : null}
-                {item.pickupStops && item.pickupStops.length > 1 ? (
-                  <Text style={styles.meta}>
-                    Pickup cities: {item.pickupStops.join(', ')}
+              <View style={[styles.card, isPast && includePast && styles.cardPast]}>
+                <Pressable
+                  onPress={() =>
+                    router.push({
+                      pathname: '/driver/ride-details',
+                      params: { rideId: item.id },
+                    })
+                  }
+                >
+                  <Text style={styles.dir}>{routeLabel(item.fromCity, item.toCity)}</Text>
+                  <Text style={[styles.meta, isPast && includePast && styles.metaPast]}>
+                    {item.date} · {item.time}
+                    {isPast && includePast ? ' · Past' : ''}
                   </Text>
-                ) : null}
-                <Text style={styles.meta}>
-                  Seats left: {item.seatsAvailable}/{item.totalSeats}
-                </Text>
-                <Text style={styles.price}>
-                  {formatPricePerSeat(item.pricePerSeat ?? 1)}
-                </Text>
-                <Text style={styles.status}>Status: {item.status}</Text>
-
-                {pending.length > 0 ? (
-                  <View style={styles.requestsBox}>
-                    <Text style={styles.requestsTitle}>
-                      Seat requests ({pending.length})
+                  {item.pickupPoint ? (
+                    <Text style={styles.meta}>Meeting: {item.pickupPoint}</Text>
+                  ) : null}
+                  <Text style={styles.meta}>
+                    {formatSeatsLabel(item.totalSeats - item.seatsAvailable)} booked ·{' '}
+                    {formatSeatsLabel(item.seatsAvailable)} left
+                  </Text>
+                  <Text style={styles.price}>
+                    {formatPricePerSeat(item.pricePerSeat ?? 1)}
+                  </Text>
+                  <Text style={styles.status}>Status: {item.status}</Text>
+                  {pendingCount > 0 ? (
+                    <Text style={styles.pendingBadge}>
+                      {pendingCount} pending request{pendingCount === 1 ? '' : 's'}
                     </Text>
-                    {pending.map((req) => (
-                      <View key={req.id} style={styles.requestRow}>
-                        <Text style={styles.requestName}>
-                          {req.rider.name || 'Rider'} requested{' '}
-                          {formatSeatsLabel(req.seatsRequested ?? 1)} · {req.rider.phone}
-                        </Text>
-                        {req.riderFromCity && req.riderToCity ? (
-                          riderSegmentDiffers(
-                            item.fromCity,
-                            item.toCity,
-                            req.riderFromCity,
-                            req.riderToCity
-                          ) ? (
-                            <>
-                              <Text style={styles.routeCompare}>
-                                Your route: {routeLabel(item.fromCity, item.toCity)}
-                              </Text>
-                              <Text style={styles.routeCompareRider}>
-                                Rider trip:{' '}
-                                {routeLabel(req.riderFromCity, req.riderToCity)}
-                              </Text>
-                            </>
-                          ) : (
-                            <Text style={styles.requestRoute}>
-                              {routeLabel(req.riderFromCity, req.riderToCity)}
-                            </Text>
-                          )
-                        ) : null}
-                        <View style={styles.row}>
-                          <Pressable
-                            style={[styles.smallBtn, styles.allowBtn]}
-                            disabled={busyId === req.id}
-                            onPress={() => onApprove(req.id)}
-                          >
-                            <Text style={[styles.smallBtnText, { color: colors.white }]}>
-                              Allow
-                            </Text>
-                          </Pressable>
-                          <Pressable
-                            style={[styles.smallBtn, styles.dangerBtn]}
-                            disabled={busyId === req.id}
-                            onPress={() => onReject(req.id)}
-                          >
-                            <Text style={[styles.smallBtnText, { color: colors.white }]}>
-                              Decline
-                            </Text>
-                          </Pressable>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                ) : null}
-
-                {booked.length > 0 ? (
-                  <View style={styles.confirmedBox}>
-                    <Text style={styles.requestsTitle}>Confirmed riders</Text>
-                    {booked.map((b) => (
-                      <View key={b.id} style={styles.confirmedRow}>
-                        <Text style={styles.requestName}>
-                          {b.rider.name || b.rider.phone} ·{' '}
-                          {formatSeatsLabel(b.seatsRequested ?? 1)}
-                        </Text>
-                        {b.riderFromCity && b.riderToCity ? (
-                          riderSegmentDiffers(
-                            item.fromCity,
-                            item.toCity,
-                            b.riderFromCity,
-                            b.riderToCity
-                          ) ? (
-                            <>
-                              <Text style={styles.routeCompare}>
-                                Your route: {routeLabel(item.fromCity, item.toCity)}
-                              </Text>
-                              <Text style={styles.routeCompareRider}>
-                                Rider trip:{' '}
-                                {routeLabel(b.riderFromCity, b.riderToCity)}
-                              </Text>
-                            </>
-                          ) : (
-                            <Text style={styles.requestRoute}>
-                              {routeLabel(b.riderFromCity, b.riderToCity)}
-                            </Text>
-                          )
-                        ) : null}
-                      </View>
-                    ))}
-                  </View>
-                ) : null}
+                  ) : null}
+                  {bookedCount > 0 ? (
+                    <Text style={styles.meta}>
+                      {bookedCount} confirmed rider{bookedCount === 1 ? '' : 's'}
+                    </Text>
+                  ) : null}
+                  <Text style={styles.detailsLink}>View details / विवरण देखें →</Text>
+                </Pressable>
 
                 {item.status === 'ACTIVE' || item.status === 'FULL' ? (
                   <View style={styles.row}>
@@ -279,7 +166,16 @@ export default function MyRidesScreen() {
             );
           }}
           ListFooterComponent={
-            <View style={{ marginTop: spacing.md }}>
+            <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+              <PrimaryButton
+                label={
+                  includePast
+                    ? 'Hide past rides / पिछली राइड छिपाएँ'
+                    : 'Show past rides / पिछली राइड देखें'
+                }
+                variant="secondary"
+                onPress={() => setIncludePast((v) => !v)}
+              />
               <PrimaryButton label="Refresh" variant="secondary" onPress={load} />
             </View>
           }
@@ -298,6 +194,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginBottom: spacing.md,
   },
+  cardPast: { opacity: 0.85 },
   dir: { fontSize: 17, fontFamily: fonts.bold, color: colors.text },
   meta: {
     color: colors.textMuted,
@@ -305,6 +202,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: fonts.regular,
   },
+  metaPast: { color: colors.textMuted },
   price: {
     marginTop: 6,
     fontFamily: fonts.bold,
@@ -316,51 +214,19 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     color: colors.primary,
   },
-  requestsBox: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  requestsTitle: {
+  pendingBadge: {
+    marginTop: 8,
     fontFamily: fonts.bold,
-    color: colors.text,
-    marginBottom: 8,
-  },
-  requestRow: { marginBottom: 12 },
-  requestName: {
-    fontFamily: fonts.medium,
-    color: colors.text,
-    marginBottom: 4,
-  },
-  requestRoute: {
-    fontFamily: fonts.regular,
-    color: colors.textMuted,
     fontSize: 14,
-    marginBottom: 8,
+    color: colors.primary,
   },
-  routeCompare: {
+  detailsLink: {
+    marginTop: 10,
     fontFamily: fonts.medium,
-    color: colors.textMuted,
-    fontSize: 13,
-    marginBottom: 2,
-  },
-  routeCompareRider: {
-    fontFamily: fonts.bold,
-    color: colors.text,
     fontSize: 14,
-    marginBottom: 8,
+    color: colors.primary,
   },
-  confirmedBox: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  confirmedRow: {
-    marginBottom: 10,
-  },
-  row: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8, gap: 8 },
+  row: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 12, gap: 8 },
   smallBtn: {
     minHeight: 44,
     paddingHorizontal: 12,
@@ -371,7 +237,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  allowBtn: { backgroundColor: colors.success, borderColor: colors.success },
   dangerBtn: { backgroundColor: colors.danger, borderColor: colors.danger },
   smallBtnText: {
     fontFamily: fonts.bold,

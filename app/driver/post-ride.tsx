@@ -20,6 +20,7 @@ import {
 } from '../../src/components/ui';
 import { todayISO } from '../../src/dates';
 import { RequireAuth } from '../../src/RequireAuth';
+import { useAuth } from '../../src/auth';
 import { colors, fonts, spacing } from '../../src/theme';
 import {
   firstAvailableSlot,
@@ -28,6 +29,7 @@ import {
 
 export default function PostRideScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [fromCity, setFromCity] = useState('');
   const [toCity, setToCity] = useState('');
   const [date, setDate] = useState(todayISO());
@@ -39,6 +41,8 @@ export default function PostRideScreen() {
   const [corridorCreated, setCorridorCreated] = useState(false);
   const [pathLoading, setPathLoading] = useState(false);
   const [pricePerSeat, setPricePerSeat] = useState('');
+  const [carModel, setCarModel] = useState('');
+  const [carNumber, setCarNumber] = useState('');
   const [seats, setSeats] = useState(3);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +55,8 @@ export default function PostRideScreen() {
   const availableSlots = useMemo(() => getAvailableSlots(date), [date]);
   const parsedPrice = parseInt(pricePerSeat.replace(/\D/g, ''), 10);
   const priceValid = Number.isFinite(parsedPrice) && parsedPrice >= 1;
+  const carValid =
+    carModel.trim().length >= 2 && carNumber.trim().length >= 4;
   const corridorReady = corridorFound || corridorCreated;
   const canPost =
     availableSlots.length > 0 &&
@@ -58,6 +64,7 @@ export default function PostRideScreen() {
     toCity.length > 0 &&
     fromCity.toLowerCase() !== toCity.toLowerCase() &&
     priceValid &&
+    carValid &&
     corridorReady;
 
   const loadPath = useCallback(async (signal?: AbortSignal) => {
@@ -77,6 +84,12 @@ export default function PostRideScreen() {
       setTime(slots[0].value);
     }
   }, [date, time]);
+
+  useEffect(() => {
+    if (!user?.driverProfile) return;
+    setCarModel((prev) => prev || user.driverProfile!.carModel);
+    setCarNumber((prev) => prev || user.driverProfile!.carNumber);
+  }, [user?.driverProfile]);
 
   useEffect(() => {
     if (!fromCity || !toCity || fromCity.toLowerCase() === toCity.toLowerCase()) {
@@ -136,6 +149,10 @@ export default function PostRideScreen() {
       setError('Enter a valid price per seat (minimum ₹1).');
       return;
     }
+    if (!carValid) {
+      setError('Enter car model and registration number for this ride.');
+      return;
+    }
     setLoading(true);
     try {
       await RidesApi.create({
@@ -147,6 +164,8 @@ export default function PostRideScreen() {
         pickupStops,
         totalSeats: seats,
         pricePerSeat: parsedPrice,
+        carModel: carModel.trim(),
+        carNumber: carNumber.trim(),
       });
       const stopsLabel =
         pickupStops.length > 0 ? ` · Pickups: ${pickupStops.join(', ')}` : '';
@@ -261,6 +280,22 @@ export default function PostRideScreen() {
               onChangeText={setPricePerSeat}
               keyboardType="number-pad"
               placeholder="e.g. 300"
+            />
+
+            <Label>Car model</Label>
+            <Field
+              value={carModel}
+              onChangeText={setCarModel}
+              placeholder="e.g. Swift"
+              autoCapitalize="words"
+            />
+
+            <Label>Registration number</Label>
+            <Field
+              value={carNumber}
+              onChangeText={setCarNumber}
+              placeholder="e.g. UP16AB1234"
+              autoCapitalize="characters"
             />
 
             <Label>Seats available</Label>

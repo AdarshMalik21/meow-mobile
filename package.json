@@ -39,7 +39,8 @@
     "ios": "expo start --ios --dev-client",
     "web": "expo start --web",
     "build:dev": "eas build --profile development --platform android",
-    "build:preview": "eas build --profile preview --platform android"
+    "build:preview": "eas build --profile preview --platform android",
+    "export:icon": "node scripts/export-app-icon.mjs"
   },
   "private": true
 }

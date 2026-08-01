@@ -54,6 +54,7 @@ export default function RootLayout() {
             <Stack.Screen name="driver/setup-car" options={{ title: 'Your car' }} />
             <Stack.Screen name="driver/post-ride" options={{ title: 'Post Ride' }} />
             <Stack.Screen name="driver/my-rides" options={{ title: 'My Rides' }} />
+            <Stack.Screen name="driver/ride-details" options={{ title: 'Ride Details' }} />
             <Stack.Screen name="rider/search" options={{ title: 'Find Ride' }} />
             <Stack.Screen name="rider/results" options={{ title: 'Rides' }} />
             <Stack.Screen name="rider/booked" options={{ headerShown: false }} />

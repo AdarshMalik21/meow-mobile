@@ -9,7 +9,7 @@
     "userInterfaceStyle": "light",
     "scheme": "zippycar",
     "splash": {
-      "image": "./assets/zuro-icon.png",
+      "image": "./assets/splash-screen.png",
       "resizeMode": "contain",
       "backgroundColor": "#EEF1F4"
     },
