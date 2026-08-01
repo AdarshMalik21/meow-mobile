@@ -103,6 +103,8 @@ export default function HomeScreen() {
           date: bannerBooking.ride.date,
           carModel: bannerBooking.ride.driver.carModel,
           carNumber: bannerBooking.ride.driver.carNumber || '',
+          pricePerSeat: String(bannerBooking.ride.pricePerSeat ?? 1),
+          seatsRequested: String(bannerBooking.seatsRequested ?? 1),
         },
       });
     } else {
@@ -119,10 +121,15 @@ export default function HomeScreen() {
           <View style={styles.hero}>
             <View style={styles.heroOverlay} />
             <View style={styles.header}>
-              <Text style={styles.brand}>meow</Text>
-              <Pressable onPress={onLogout} hitSlop={12}>
-                <Text style={styles.logout}>Log out</Text>
-              </Pressable>
+              <Text style={styles.brand}>zuro</Text>
+              <View style={styles.headerActions}>
+                <Pressable onPress={() => router.push('/contact')} hitSlop={12}>
+                  <Text style={styles.contactLink}>Contact us</Text>
+                </Pressable>
+                <Pressable onPress={onLogout} hitSlop={12}>
+                  <Text style={styles.logout}>Log out</Text>
+                </Pressable>
+              </View>
             </View>
             <Text style={styles.heroTagline}>City to city, seat by seat</Text>
           </View>
@@ -231,6 +238,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  contactLink: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 14,
+    fontFamily: fonts.medium,
   },
   brand: {
     fontSize: 28,

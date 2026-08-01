@@ -41,8 +41,7 @@ export default function VerifyOtpScreen() {
     try {
       const idToken = await confirmOtp(code);
       const user = await signInWithFirebase(idToken);
-      if (user.needsName) router.replace('/setup-name');
-      else router.replace('/choose-role');
+      router.replace('/');
     } catch (e) {
       if (e instanceof Error && e.message === 'NO_CONFIRMATION') {
         setError('OTP session expired. Send OTP again.');

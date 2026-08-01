@@ -13,6 +13,7 @@ import { useAuth } from '../src/auth';
 import { useRole } from '../src/role';
 import { ApiError } from '../src/api';
 import { mapFirebaseAuthError, sendOtp } from '../src/firebaseAuth';
+import { ZuroIcon } from '../src/components/ZuroIcon';
 import {
   BottomBar,
   ErrorText,
@@ -23,7 +24,7 @@ import {
   Subtitle,
   Title,
 } from '../src/components/ui';
-import { colors, fonts } from '../src/theme';
+import { colors, fonts, spacing } from '../src/theme';
 import { getApiUrl } from '../src/apiConfig';
 
 const ALLOW_DEV = process.env.EXPO_PUBLIC_ALLOW_DEV_AUTH === 'true';
@@ -74,9 +75,8 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await clearMode();
-      const user = await signInWithDev(digits);
-      if (user.needsName) router.replace('/setup-name');
-      else router.replace('/choose-role');
+      await signInWithDev(digits);
+      router.replace('/');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not log in. Try again.');
     } finally {
@@ -89,12 +89,13 @@ export default function LoginScreen() {
       style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <Screen>
-        <Text style={styles.brand}>meow</Text>
-        <Title>Log in with phone</Title>
+      <Screen style={styles.screen} safeTop>
+        <ZuroIcon size="small" style={styles.logo} />
+        <Title>Log in or sign up</Title>
         <Subtitle>
           Enter your mobile number. We will send a 6-digit OTP to verify you.
         </Subtitle>
+        <Text style={styles.trustLine}>We never share your number</Text>
         <Label>Mobile number</Label>
         <Field
           keyboardType="phone-pad"
@@ -104,14 +105,6 @@ export default function LoginScreen() {
           onChangeText={setPhone}
         />
         <ErrorText>{error}</ErrorText>
-        {ALLOW_DEV ? (
-          <Pressable onPress={onDevLogin} style={{ marginTop: 16 }} hitSlop={8}>
-            <Text style={styles.devLink}>Dev login (no OTP) — tap here</Text>
-          </Pressable>
-        ) : null}
-        {__DEV__ ? (
-          <Text style={styles.devHint}>API: {getApiUrl()}</Text>
-        ) : null}
       </Screen>
       <BottomBar>
         <PrimaryButton
@@ -119,17 +112,41 @@ export default function LoginScreen() {
           onPress={onSendOtp}
           loading={loading}
         />
+        {ALLOW_DEV || __DEV__ ? (
+          <View style={styles.devBlock}>
+            {ALLOW_DEV ? (
+              <Pressable onPress={onDevLogin} hitSlop={8}>
+                <Text style={styles.devLink}>Dev login (no OTP) — tap here</Text>
+              </Pressable>
+            ) : null}
+            {__DEV__ ? (
+              <Text style={styles.devHint}>API: {getApiUrl()}</Text>
+            ) : null}
+          </View>
+        ) : null}
       </BottomBar>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  brand: {
-    fontSize: 32,
-    fontFamily: fonts.bold,
-    color: colors.primary,
-    marginBottom: 8,
+  screen: {
+    paddingBottom: spacing.sm,
+  },
+  logo: {
+    marginBottom: spacing.md,
+  },
+  trustLine: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: colors.textMuted,
+    marginTop: -spacing.sm,
+    marginBottom: spacing.md,
+  },
+  devBlock: {
+    marginTop: spacing.sm,
+    alignItems: 'center',
+    gap: 4,
   },
   devLink: {
     color: colors.textMuted,
@@ -137,7 +154,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
   },
   devHint: {
-    marginTop: 12,
     color: colors.textMuted,
     fontSize: 11,
     fontFamily: fonts.regular,

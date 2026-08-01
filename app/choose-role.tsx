@@ -19,7 +19,7 @@ export default function ChooseRoleScreen() {
     <RequireAuth>
       <SafeAreaView style={styles.safe}>
         <View style={styles.body}>
-          <Text style={styles.brand}>meow</Text>
+          <Text style={styles.brand}>zuro</Text>
           <Title>How are you using the app today?</Title>
           <Subtitle>Choose Rider or Driver for this session.</Subtitle>
         </View>

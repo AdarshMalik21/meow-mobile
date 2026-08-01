@@ -1,8 +1,9 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { ApiError, RoutesApi, RidesApi } from '../../src/api';
 import { CityAutocomplete } from '../../src/components/CityAutocomplete';
+import { CorridorRouteBuilder } from '../../src/components/CorridorRouteBuilder';
 import { DatePickerField } from '../../src/components/DatePickerField';
 import { PickupStopPicker } from '../../src/components/PickupStopPicker';
 import { TimeSlotPicker } from '../../src/components/TimeSlotPicker';
@@ -34,7 +35,10 @@ export default function PostRideScreen() {
   const [pickupPoint, setPickupPoint] = useState('');
   const [pickupStops, setPickupStops] = useState<string[]>([]);
   const [intermediateCities, setIntermediateCities] = useState<string[]>([]);
+  const [corridorFound, setCorridorFound] = useState(false);
+  const [corridorCreated, setCorridorCreated] = useState(false);
   const [pathLoading, setPathLoading] = useState(false);
+  const [pricePerSeat, setPricePerSeat] = useState('');
   const [seats, setSeats] = useState(3);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,11 +49,26 @@ export default function PostRideScreen() {
   }, []);
 
   const availableSlots = useMemo(() => getAvailableSlots(date), [date]);
+  const parsedPrice = parseInt(pricePerSeat.replace(/\D/g, ''), 10);
+  const priceValid = Number.isFinite(parsedPrice) && parsedPrice >= 1;
+  const corridorReady = corridorFound || corridorCreated;
   const canPost =
     availableSlots.length > 0 &&
     fromCity.length > 0 &&
     toCity.length > 0 &&
-    fromCity.toLowerCase() !== toCity.toLowerCase();
+    fromCity.toLowerCase() !== toCity.toLowerCase() &&
+    priceValid &&
+    corridorReady;
+
+  const loadPath = useCallback(async (signal?: AbortSignal) => {
+    const path = await RoutesApi.getPath(fromCity, toCity, signal);
+    setCorridorFound(path.corridorFound);
+    setIntermediateCities(path.intermediateCities);
+    setPickupStops((prev) =>
+      prev.filter((c) => path.intermediateCities.includes(c))
+    );
+    return path;
+  }, [fromCity, toCity]);
 
   useEffect(() => {
     const slots = getAvailableSlots(date);
@@ -63,27 +82,37 @@ export default function PostRideScreen() {
     if (!fromCity || !toCity || fromCity.toLowerCase() === toCity.toLowerCase()) {
       setIntermediateCities([]);
       setPickupStops([]);
+      setCorridorFound(false);
+      setCorridorCreated(false);
       return;
     }
 
     const controller = new AbortController();
     setPathLoading(true);
-    RoutesApi.getPath(fromCity, toCity, controller.signal)
-      .then((path) => {
-        setIntermediateCities(path.intermediateCities);
-        setPickupStops((prev) =>
-          prev.filter((c) => path.intermediateCities.includes(c))
-        );
-      })
+    setCorridorCreated(false);
+    loadPath(controller.signal)
       .catch((e) => {
         if (e?.name === 'AbortError') return;
         setIntermediateCities([]);
         setPickupStops([]);
+        setCorridorFound(false);
       })
       .finally(() => setPathLoading(false));
 
     return () => controller.abort();
-  }, [fromCity, toCity]);
+  }, [fromCity, toCity, loadPath]);
+
+  const onCorridorCreated = async () => {
+    setPathLoading(true);
+    try {
+      await loadPath();
+      setCorridorCreated(true);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Could not load route after save.');
+    } finally {
+      setPathLoading(false);
+    }
+  };
 
   const onPost = async () => {
     setError(null);
@@ -95,8 +124,16 @@ export default function PostRideScreen() {
       setError('From and To must be different cities.');
       return;
     }
+    if (!corridorReady) {
+      setError('Add this route to our system before posting.');
+      return;
+    }
     if (!canPost) {
       setError('No departure times left for this date. Pick another date.');
+      return;
+    }
+    if (!priceValid) {
+      setError('Enter a valid price per seat (minimum ₹1).');
       return;
     }
     setLoading(true);
@@ -109,6 +146,7 @@ export default function PostRideScreen() {
         pickupPoint: pickupPoint.trim() || undefined,
         pickupStops,
         totalSeats: seats,
+        pricePerSeat: parsedPrice,
       });
       const stopsLabel =
         pickupStops.length > 0 ? ` · Pickups: ${pickupStops.join(', ')}` : '';
@@ -132,7 +170,15 @@ export default function PostRideScreen() {
   const cityHint =
     !fromCity || !toCity
       ? 'Select From and To cities from the list to enable Post Ride.'
-      : null;
+      : !corridorReady
+        ? 'This route needs to be added before you can post a ride.'
+        : null;
+
+  const showRouteBuilder =
+    !pathLoading && fromCity && toCity && fromCity.toLowerCase() !== toCity.toLowerCase() && !corridorFound && !corridorCreated;
+
+  const showPickupPicker =
+    !pathLoading && corridorReady && fromCity && toCity;
 
   return (
     <RequireAuth>
@@ -173,7 +219,17 @@ export default function PostRideScreen() {
               >
                 Loading route cities…
               </Text>
-            ) : (
+            ) : null}
+
+            {showRouteBuilder ? (
+              <CorridorRouteBuilder
+                fromCity={fromCity}
+                toCity={toCity}
+                onCreated={onCorridorCreated}
+              />
+            ) : null}
+
+            {showPickupPicker ? (
               <PickupStopPicker
                 driverFrom={fromCity}
                 driverTo={toCity}
@@ -181,7 +237,7 @@ export default function PostRideScreen() {
                 selected={pickupStops}
                 onChange={setPickupStops}
               />
-            )}
+            ) : null}
 
             <DatePickerField
               label="Travel date"
@@ -197,6 +253,14 @@ export default function PostRideScreen() {
               value={pickupPoint}
               onChangeText={setPickupPoint}
               placeholder="e.g. Railway Station"
+            />
+
+            <Label>Price per seat (₹)</Label>
+            <Field
+              value={pricePerSeat}
+              onChangeText={setPricePerSeat}
+              keyboardType="number-pad"
+              placeholder="e.g. 300"
             />
 
             <Label>Seats available</Label>

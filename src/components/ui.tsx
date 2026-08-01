@@ -8,16 +8,30 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts, spacing } from '../theme';
 
 export function Screen({
   children,
   style,
+  safeTop = false,
 }: {
   children: React.ReactNode;
   style?: ViewStyle;
+  safeTop?: boolean;
 }) {
-  return <View style={[styles.screen, style]}>{children}</View>;
+  const insets = useSafeAreaInsets();
+  return (
+    <View
+      style={[
+        styles.screen,
+        { paddingTop: (safeTop ? insets.top : 0) + spacing.lg },
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
 }
 
 export function Title({ children }: { children: React.ReactNode }) {
@@ -93,7 +107,17 @@ export function PrimaryButton({
 }
 
 export function BottomBar({ children }: { children: React.ReactNode }) {
-  return <View style={styles.bottomBar}>{children}</View>;
+  const insets = useSafeAreaInsets();
+  return (
+    <View
+      style={[
+        styles.bottomBar,
+        { paddingBottom: insets.bottom + spacing.md },
+      ]}
+    >
+      {children}
+    </View>
+  );
 }
 
 export function ChoiceChip({
@@ -122,7 +146,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
   },
   title: {
     fontSize: 28,
@@ -174,7 +197,7 @@ const styles = StyleSheet.create({
   },
   bottomBar: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.white,

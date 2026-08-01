@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { ApiError, Booking, BookingsApi } from '../../src/api';
-import { routeLabel } from '../../src/constants';
+import { routeLabel, formatBookingTotal, formatPricePerSeat } from '../../src/constants';
 import { ErrorText, PrimaryButton, Screen, Title } from '../../src/components/ui';
 import { isRideDateTimePast } from '../../src/dates';
 import { RequireAuth } from '../../src/RequireAuth';
@@ -109,6 +109,14 @@ export default function MyBookingsScreen() {
                 {item.ride.pickupPoint ? (
                   <Text style={styles.meta}>Meeting: {item.ride.pickupPoint}</Text>
                 ) : null}
+                {item.ride.pricePerSeat != null ? (
+                  <Text style={styles.price}>
+                    {formatPricePerSeat(item.ride.pricePerSeat)}
+                    {item.seatsRequested
+                      ? ` · ${formatBookingTotal(item.seatsRequested, item.ride.pricePerSeat)}`
+                      : ''}
+                  </Text>
+                ) : null}
                 {past ? (
                   <Text style={styles.unavailable}>
                     Unavailable — ride time has passed
@@ -145,6 +153,8 @@ export default function MyBookingsScreen() {
                                 date: item.ride.date,
                                 carModel: item.ride.driver.carModel,
                                 carNumber: item.ride.driver.carNumber || '',
+                                pricePerSeat: String(item.ride.pricePerSeat ?? 1),
+                                seatsRequested: String(item.seatsRequested ?? 1),
                               },
                             })
                           }
@@ -190,6 +200,12 @@ const styles = StyleSheet.create({
   },
   name: { fontSize: 17, fontFamily: fonts.bold, color: colors.text },
   meta: { color: colors.textMuted, marginTop: 4, fontFamily: fonts.regular },
+  price: {
+    marginTop: 6,
+    color: colors.text,
+    fontFamily: fonts.bold,
+    fontSize: 15,
+  },
   phone: {
     color: colors.primary,
     marginTop: 8,

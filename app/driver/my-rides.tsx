@@ -9,10 +9,23 @@ import {
   View,
 } from 'react-native';
 import { ApiError, BookingsApi, Ride, RidesApi } from '../../src/api';
-import { routeLabel } from '../../src/constants';
+import { routeLabel, formatPricePerSeat, formatSeatsLabel } from '../../src/constants';
 import { ErrorText, PrimaryButton, Screen, Title } from '../../src/components/ui';
 import { RequireAuth } from '../../src/RequireAuth';
 import { colors, fonts, spacing } from '../../src/theme';
+
+function riderSegmentDiffers(
+  driverFrom: string,
+  driverTo: string,
+  riderFrom?: string,
+  riderTo?: string
+): boolean {
+  if (!riderFrom || !riderTo) return false;
+  return (
+    riderFrom.toLowerCase() !== driverFrom.toLowerCase() ||
+    riderTo.toLowerCase() !== driverTo.toLowerCase()
+  );
+}
 
 export default function MyRidesScreen() {
   const router = useRouter();
@@ -136,6 +149,9 @@ export default function MyRidesScreen() {
                 <Text style={styles.meta}>
                   Seats left: {item.seatsAvailable}/{item.totalSeats}
                 </Text>
+                <Text style={styles.price}>
+                  {formatPricePerSeat(item.pricePerSeat ?? 1)}
+                </Text>
                 <Text style={styles.status}>Status: {item.status}</Text>
 
                 {pending.length > 0 ? (
@@ -146,11 +162,31 @@ export default function MyRidesScreen() {
                     {pending.map((req) => (
                       <View key={req.id} style={styles.requestRow}>
                         <Text style={styles.requestName}>
-                          {req.rider.name || 'Rider'} · {req.rider.phone}
-                          {req.riderFromCity && req.riderToCity
-                            ? `\n${req.riderFromCity} → ${req.riderToCity}`
-                            : ''}
+                          {req.rider.name || 'Rider'} requested{' '}
+                          {formatSeatsLabel(req.seatsRequested ?? 1)} · {req.rider.phone}
                         </Text>
+                        {req.riderFromCity && req.riderToCity ? (
+                          riderSegmentDiffers(
+                            item.fromCity,
+                            item.toCity,
+                            req.riderFromCity,
+                            req.riderToCity
+                          ) ? (
+                            <>
+                              <Text style={styles.routeCompare}>
+                                Your route: {routeLabel(item.fromCity, item.toCity)}
+                              </Text>
+                              <Text style={styles.routeCompareRider}>
+                                Rider trip:{' '}
+                                {routeLabel(req.riderFromCity, req.riderToCity)}
+                              </Text>
+                            </>
+                          ) : (
+                            <Text style={styles.requestRoute}>
+                              {routeLabel(req.riderFromCity, req.riderToCity)}
+                            </Text>
+                          )
+                        ) : null}
                         <View style={styles.row}>
                           <Pressable
                             style={[styles.smallBtn, styles.allowBtn]}
@@ -177,10 +213,39 @@ export default function MyRidesScreen() {
                 ) : null}
 
                 {booked.length > 0 ? (
-                  <Text style={styles.meta}>
-                    Confirmed riders:{' '}
-                    {booked.map((b) => b.rider.name || b.rider.phone).join(', ')}
-                  </Text>
+                  <View style={styles.confirmedBox}>
+                    <Text style={styles.requestsTitle}>Confirmed riders</Text>
+                    {booked.map((b) => (
+                      <View key={b.id} style={styles.confirmedRow}>
+                        <Text style={styles.requestName}>
+                          {b.rider.name || b.rider.phone} ·{' '}
+                          {formatSeatsLabel(b.seatsRequested ?? 1)}
+                        </Text>
+                        {b.riderFromCity && b.riderToCity ? (
+                          riderSegmentDiffers(
+                            item.fromCity,
+                            item.toCity,
+                            b.riderFromCity,
+                            b.riderToCity
+                          ) ? (
+                            <>
+                              <Text style={styles.routeCompare}>
+                                Your route: {routeLabel(item.fromCity, item.toCity)}
+                              </Text>
+                              <Text style={styles.routeCompareRider}>
+                                Rider trip:{' '}
+                                {routeLabel(b.riderFromCity, b.riderToCity)}
+                              </Text>
+                            </>
+                          ) : (
+                            <Text style={styles.requestRoute}>
+                              {routeLabel(b.riderFromCity, b.riderToCity)}
+                            </Text>
+                          )
+                        ) : null}
+                      </View>
+                    ))}
+                  </View>
                 ) : null}
 
                 {item.status === 'ACTIVE' || item.status === 'FULL' ? (
@@ -240,6 +305,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: fonts.regular,
   },
+  price: {
+    marginTop: 6,
+    fontFamily: fonts.bold,
+    fontSize: 15,
+    color: colors.text,
+  },
   status: {
     marginTop: 8,
     fontFamily: fonts.bold,
@@ -260,7 +331,34 @@ const styles = StyleSheet.create({
   requestName: {
     fontFamily: fonts.medium,
     color: colors.text,
+    marginBottom: 4,
+  },
+  requestRoute: {
+    fontFamily: fonts.regular,
+    color: colors.textMuted,
+    fontSize: 14,
     marginBottom: 8,
+  },
+  routeCompare: {
+    fontFamily: fonts.medium,
+    color: colors.textMuted,
+    fontSize: 13,
+    marginBottom: 2,
+  },
+  routeCompareRider: {
+    fontFamily: fonts.bold,
+    color: colors.text,
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  confirmedBox: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  confirmedRow: {
+    marginBottom: 10,
   },
   row: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8, gap: 8 },
   smallBtn: {

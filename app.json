@@ -1,17 +1,17 @@
 {
   "expo": {
-    "name": "meow",
+    "name": "zuro",
     "slug": "zippycar",
     "owner": "adarsh_dev",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/zuro-icon.png",
     "userInterfaceStyle": "light",
     "scheme": "zippycar",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/zuro-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FFFFFF"
+      "backgroundColor": "#EEF1F4"
     },
     "ios": {
       "supportsTablet": false,
@@ -22,14 +22,12 @@
       "googleServicesFile": "./google-services.json",
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
-        "backgroundColor": "#0066CC",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#EEF1F4",
+        "foregroundImage": "./assets/zuro-icon.png"
       }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/zuro-icon.png"
     },
     "plugins": [
       "expo-router",
@@ -42,8 +40,8 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/icon.png",
-          "color": "#0066CC"
+          "icon": "./assets/zuro-icon.png",
+          "color": "#0C2340"
         }
       ]
     ],

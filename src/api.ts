@@ -8,12 +8,14 @@ export type User = {
   hasDriverProfile: boolean;
   driverProfile: { carModel: string; carNumber: string } | null;
   needsName: boolean;
+  needsTermsAcceptance: boolean;
 };
 
 export type RideRequest = {
   id: string;
   status: 'PENDING' | 'BOOKED' | 'REJECTED' | 'CANCELLED';
   createdAt: string;
+  seatsRequested?: number;
   riderFromCity?: string;
   riderToCity?: string;
   rider: {
@@ -31,9 +33,10 @@ export type Ride = {
   time: string;
   pickupPoint: string;
   pickupStops?: string[];
-  matchType?: 'exact' | 'viaStop';
+  matchType?: 'exact' | 'viaStop' | 'partial';
   totalSeats: number;
   seatsAvailable: number;
+  pricePerSeat: number;
   status: 'ACTIVE' | 'FULL' | 'CANCELLED' | 'COMPLETED';
   bookingsCount?: number;
   pendingCount?: number;
@@ -51,6 +54,7 @@ export type Booking = {
   id: string;
   status: 'PENDING' | 'BOOKED' | 'REJECTED' | 'CANCELLED';
   createdAt: string;
+  seatsRequested?: number;
   riderFromCity?: string;
   riderToCity?: string;
   ride: {
@@ -62,6 +66,7 @@ export type Booking = {
     pickupPoint: string;
     status: string;
     seatsAvailable: number;
+    pricePerSeat?: number;
     driver: {
       name: string | null;
       phone?: string;
@@ -147,6 +152,8 @@ export const AuthApi = {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
+  acceptTerms: () =>
+    api<{ user: User }>('/auth/accept-terms', { method: 'POST' }),
 };
 
 export const UsersApi = {
@@ -182,6 +189,22 @@ export const RoutesApi = {
     ),
 };
 
+export const CorridorsApi = {
+  create: (body: { fromCity: string; toCity: string; cities: string[] }) =>
+    api<{
+      corridor: {
+        id: string;
+        fromCity: string;
+        toCity: string;
+        cities: string[];
+        existing?: boolean;
+      };
+    }>('/corridors', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+};
+
 export const RidesApi = {
   search: (fromCity: string, toCity: string, date: string) =>
     api<{ rides: Ride[] }>(
@@ -196,6 +219,7 @@ export const RidesApi = {
     pickupPoint?: string;
     pickupStops?: string[];
     totalSeats: number;
+    pricePerSeat: number;
   }) =>
     api<{ ride: Ride }>('/rides', {
       method: 'POST',
@@ -208,7 +232,7 @@ export const RidesApi = {
     }),
   book: (
     id: string,
-    body?: { riderFromCity: string; riderToCity: string }
+    body?: { riderFromCity: string; riderToCity: string; seatsRequested?: number }
   ) =>
     api<{
       booking: {

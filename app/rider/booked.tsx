@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Linking, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { formatBookingTotal, formatPricePerSeat } from '../../src/constants';
 import { PrimaryButton } from '../../src/components/ui';
 import { colors, spacing } from '../../src/theme';
 
@@ -14,7 +15,12 @@ export default function BookedScreen() {
     date: string;
     carModel: string;
     carNumber: string;
+    pricePerSeat?: string;
+    seatsRequested?: string;
   }>();
+
+  const seats = parseInt(params.seatsRequested || '1', 10) || 1;
+  const price = parseInt(params.pricePerSeat || '1', 10) || 1;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -46,6 +52,9 @@ export default function BookedScreen() {
           <Text style={styles.value}>
             {params.date} · {params.time}
           </Text>
+          <Text style={styles.label}>Fare</Text>
+          <Text style={styles.value}>{formatPricePerSeat(price)}</Text>
+          <Text style={styles.value}>{formatBookingTotal(seats, price)}</Text>
         </View>
       </View>
       <View style={styles.actions}>

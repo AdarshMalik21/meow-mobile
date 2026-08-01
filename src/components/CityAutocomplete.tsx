@@ -20,6 +20,8 @@ type Props = {
   onChange: (city: string) => void;
   /** Hide this city from suggestions (e.g. the other field's selection). */
   excludeCity?: string;
+  /** Hide multiple cities from suggestions. */
+  excludeCities?: string[];
 };
 
 export function CityAutocomplete({
@@ -28,6 +30,7 @@ export function CityAutocomplete({
   value,
   onChange,
   excludeCity,
+  excludeCities,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -51,9 +54,13 @@ export function CityAutocomplete({
       try {
         const { cities } = await CitiesApi.search(debouncedQuery, controller.signal);
         if (controller.signal.aborted) return;
-        const filtered = excludeCity
-          ? cities.filter((c) => c.toLowerCase() !== excludeCity.toLowerCase())
-          : cities;
+        const excluded = new Set(
+          [
+            ...(excludeCities ?? []),
+            ...(excludeCity ? [excludeCity] : []),
+          ].map((c) => c.toLowerCase())
+        );
+        const filtered = cities.filter((c) => !excluded.has(c.toLowerCase()));
         setResults(filtered);
       } catch (e) {
         if (controller.signal.aborted) return;
@@ -65,7 +72,7 @@ export function CityAutocomplete({
     })();
 
     return () => controller.abort();
-  }, [debouncedQuery, open, excludeCity]);
+  }, [debouncedQuery, open, excludeCity, excludeCities]);
 
   const openPicker = () => {
     setQuery(value);
