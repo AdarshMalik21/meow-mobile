@@ -13,3 +13,4 @@ GoogleService-Info.plist
 *.mobileprovision
 *.orig.*
 npm-debug.*
+google-services.json
